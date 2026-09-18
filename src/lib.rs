@@ -1,7 +1,6 @@
 pub mod app;
 pub use self::app::App;
 
-#[doc(hidden)]
-pub mod deps {
-    pub use tokio;
+pub mod log {
+    pub use log::{debug, error, info, warn};
 }

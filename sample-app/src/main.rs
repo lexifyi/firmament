@@ -1,20 +1,19 @@
-use std::time;
+use firmament::app;
 
 struct App {}
 
 impl firmament::App for App {
-    async fn new() -> firmament::app::Result<Self> {
+    async fn new() -> app::Result<Self> {
         Ok(App {})
     }
 
-    async fn run(&'static self) -> firmament::app::Result {
-        tokio::time::sleep(time::Duration::from_hours(1)).await;
-        Ok(())
-    }
+    async fn run(&'static self) -> app::Result {
+        use std::time;
 
-    async fn on_exit_request(&'static self) {
-        log::debug!("Exit requested.");
+        tokio::time::sleep(time::Duration::from_hours(1)).await;
+
+        Ok(())
     }
 }
 
-firmament::main!(APP: App);
+firmament::main!(App);
