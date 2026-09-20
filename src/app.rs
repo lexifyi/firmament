@@ -3,6 +3,8 @@ pub mod error {
     pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 }
 
+use dotenv::dotenv;
+
 pub use self::error::{Error, Result};
 
 #[allow(async_fn_in_trait)]
@@ -18,6 +20,9 @@ const DEFAULT_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
 
 #[doc(hidden)]
 pub fn __run<A: App>(crate_name: &str) -> Result {
+    #[cfg(debug_assertions)]
+    let _ = dotenv();
+
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
         .filter_module(crate_name, DEFAULT_LOG_LEVEL)
