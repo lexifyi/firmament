@@ -1,21 +1,6 @@
-use firmament::app;
+#[firmament::main]
+async fn main() -> firmament::app::Result {
+    log::debug!("Hello world!");
 
-struct App {}
-
-impl firmament::App for App {
-    async fn new() -> app::Result<Self> {
-        Ok(App {})
-    }
-
-    async fn run(&'static self) -> app::Result {
-        use std::time;
-
-        log::info!("Hello world!");
-
-        tokio::time::sleep(time::Duration::from_hours(1)).await;
-
-        Ok(())
-    }
+    Ok(())
 }
-
-firmament::main!(App);
