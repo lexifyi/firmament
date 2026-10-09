@@ -52,7 +52,7 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 Ok(_) => std::process::ExitCode::SUCCESS,
 
                 Err(err) => {
-                    log::error!("{err}");
+                    firmament::log::error!("{err}");
 
                     std::process::ExitCode::FAILURE
                 }
