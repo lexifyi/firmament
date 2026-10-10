@@ -1,5 +1,3 @@
-use std::env;
-
 use firmament::log;
 
 #[firmament::main]
