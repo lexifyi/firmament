@@ -1,10 +1,15 @@
+use std::env;
+
 use firmament::log;
 
 #[firmament::main]
 async fn main() -> firmament::app::Result {
-    let env = &*firmament::ENV;
-
-    log::info!("Data dir: {:?}", env.data_dir);
+    log::info!(
+        "Data dir: {:?}",
+        firmament::DATA_DIR
+            .as_ref()
+            .expect("failed to determine data dir")
+    );
 
     Ok(())
 }
