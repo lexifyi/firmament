@@ -1,17 +1,11 @@
-use firmament::{Task, log};
+use std::time::Duration;
+
+use firmament::{log, repeat_every};
 
 #[firmament::main]
 async fn main() -> firmament::app::Result {
-    let task = Task::new(async {
-        log::info!(
-            "Data dir: {:?}",
-            firmament::DATA_DIR
-                .as_ref()
-                .expect("failed to determine data dir")
-        );
-    });
-
-    task.join().await;
-
-    Ok(())
+    repeat_every(Duration::from_secs(1), async || {
+        log::info!("Hello world!");
+    })
+    .await;
 }

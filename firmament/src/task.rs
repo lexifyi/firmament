@@ -1,12 +1,14 @@
+use tokio::time::{Duration, Instant, sleep};
+
+#[must_use = "Tasks are aborted when dropped. Call .detach() to run a task in the background."]
 pub struct Task<T> {
     inner: Option<tokio::task::JoinHandle<T>>,
 }
 
 impl<T> Task<T> {
-    #[must_use = "Tasks are aborted when dropped. Call .detach() to run a task in the background."]
-    pub fn new<F>(future: F) -> Self
+    #[inline]
+    pub fn new(future: impl Future<Output = T> + Send + 'static) -> Self
     where
-        F: Future<Output = T> + Send + 'static,
         T: Send + 'static,
     {
         Self {
@@ -44,6 +46,23 @@ impl<T> Drop for Task<T> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.take() {
             inner.abort();
+        }
+    }
+}
+
+pub async fn repeat_every<F>(duration: Duration, mut func: impl FnMut() -> F) -> !
+where
+    F: Future<Output = ()>,
+{
+    loop {
+        let start = Instant::now();
+
+        func().await;
+
+        let remaining = duration.saturating_sub(start.elapsed());
+
+        if !remaining.is_zero() {
+            sleep(remaining).await;
         }
     }
 }
