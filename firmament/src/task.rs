@@ -50,7 +50,7 @@ impl<T> Drop for Task<T> {
     }
 }
 
-pub async fn repeat_every<F>(duration: Duration, func: impl Fn() -> F) -> !
+pub async fn repeat_every<F>(duration: Duration, mut func: impl FnMut() -> F) -> !
 where
     F: Future<Output = ()>,
 {
