@@ -3,10 +3,16 @@ name = "firmament"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+aws = ["dep:aws-config"]
+email = ["aws", "dep:aws-sdk-ses"]
+
 [dependencies]
 anyhow = "1"
+aws-config = { version = "1", features = ["credentials-login"], optional = true }
+aws-sdk-ses = { version = "1", optional = true }
 dotenv = "0.15"
 env_logger = "0.11.11"
 firmament_proc_macros = { path = "../firmament-proc-macros" }
 log = "0.4.34"
-tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }

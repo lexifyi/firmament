@@ -2,6 +2,9 @@
 use dotenv::dotenv;
 pub use firmament_proc_macros::main;
 
+#[cfg(feature = "aws")]
+use crate::aws;
+
 pub use self::error::{Error, Result};
 
 #[cfg(debug_assertions)]
