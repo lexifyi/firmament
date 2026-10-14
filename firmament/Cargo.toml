@@ -11,6 +11,7 @@ email = ["aws", "dep:aws-sdk-ses"]
 anyhow = "1"
 aws-config = { version = "1", features = ["credentials-login"], optional = true }
 aws-sdk-ses = { version = "1", optional = true }
+base32 = { version = "0.5.1" }
 dotenv = "0.15"
 env_logger = "0.11.11"
 firmament_proc_macros = { path = "../firmament-proc-macros" }

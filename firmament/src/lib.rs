@@ -1,6 +1,7 @@
 pub mod app;
 #[cfg(feature = "aws")]
 pub mod aws;
+pub mod base32;
 #[cfg(feature = "email")]
 pub mod email;
 mod env;
