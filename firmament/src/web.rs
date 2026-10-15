@@ -29,8 +29,6 @@ impl Server {
     }
 
     pub async fn start(self) -> app::Result<Task> {
-        let listener = tokio::net::TcpListener::bind(self.bind_address).await?;
-
         let mut service = self.api.router.unwrap();
 
         if let Some(public_dir) = self.public_dir {
@@ -38,6 +36,11 @@ impl Server {
                 tower_http::services::ServeDir::new(public_dir).precompressed_br(),
             );
         }
+
+        let listener = tokio::net::TcpListener::bind(self.bind_address).await?;
+        let addr = listener.local_addr()?;
+
+        log::info!("Listening on {}…", addr);
 
         Ok(Task::new(async move {
             axum::serve(listener, service)

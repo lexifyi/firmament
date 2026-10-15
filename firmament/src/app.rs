@@ -19,6 +19,7 @@ where
 
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
+        .filter_module("firmament", DEFAULT_LOG_LEVEL)
         .filter_module(crate_name, DEFAULT_LOG_LEVEL)
         .init();
 
