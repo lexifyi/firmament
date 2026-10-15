@@ -1,6 +1,6 @@
 use std::{
     fmt,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
     path::PathBuf,
 };
 
@@ -11,7 +11,7 @@ use crate::{Task, app};
 
 pub struct Server {
     pub api: Api,
-    pub bind_address: SocketAddr,
+    pub listen_address: SocketAddr,
     pub public_dir: Option<PathBuf>,
 }
 
@@ -19,13 +19,25 @@ impl Server {
     pub fn new() -> Self {
         let mut server = Self {
             api: Api::new(),
-            bind_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 80)),
+            listen_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 80)),
             public_dir: None,
         };
 
         server.api.add_query("firmament/isUp", async |_: ()| true);
 
         server
+    }
+
+    pub fn set_listen_ip(&mut self, ip: impl Into<IpAddr>) {
+        self.listen_address.set_ip(ip.into());
+    }
+
+    pub fn set_listen_port(&mut self, port: u16) {
+        self.listen_address.set_port(port);
+    }
+
+    pub fn set_public_dir(&mut self, path: impl Into<PathBuf>) {
+        self.public_dir = Some(path.into());
     }
 
     pub async fn start(self) -> app::Result<Task> {
@@ -37,7 +49,7 @@ impl Server {
             );
         }
 
-        let listener = tokio::net::TcpListener::bind(self.bind_address).await?;
+        let listener = tokio::net::TcpListener::bind(self.listen_address).await?;
         let addr = listener.local_addr()?;
 
         log::info!("Listening on {}…", addr);
