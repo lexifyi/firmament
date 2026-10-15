@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 firmament = { path = "../firmament", features = ["web"] }
 rand = "0.10.3"
+tower-http = "0.7.1"

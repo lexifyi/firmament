@@ -1,6 +1,7 @@
 use std::{
     fmt,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    path::PathBuf,
 };
 
 use axum::{Json, Router, extract::Query};
@@ -9,15 +10,17 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::{Task, app};
 
 pub struct Server {
-    pub bind_address: SocketAddr,
     pub api: Api,
+    pub bind_address: SocketAddr,
+    pub public_dir: Option<PathBuf>,
 }
 
 impl Server {
     pub fn new() -> Self {
         let mut server = Self {
-            bind_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 80)),
             api: Api::new(),
+            bind_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 80)),
+            public_dir: None,
         };
 
         server.api.add_query("firmament/isUp", async |_: ()| true);
@@ -28,8 +31,16 @@ impl Server {
     pub async fn start(self) -> app::Result<Task> {
         let listener = tokio::net::TcpListener::bind(self.bind_address).await?;
 
+        let mut service = self.api.router.unwrap();
+
+        if let Some(public_dir) = self.public_dir {
+            service = service.fallback_service(
+                tower_http::services::ServeDir::new(public_dir).precompressed_br(),
+            );
+        }
+
         Ok(Task::new(async move {
-            axum::serve(listener, self.api.router.unwrap())
+            axum::serve(listener, service)
                 .await
                 .expect("unexpected error from axum::serve");
         }))
