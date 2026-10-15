@@ -6,6 +6,9 @@ pub mod base32;
 pub mod email;
 mod env;
 mod task;
+#[cfg(feature = "web")]
+pub mod web;
+
 pub use self::app::main;
 #[cfg(feature = "email")]
 pub use self::email::Email;

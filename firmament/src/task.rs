@@ -1,7 +1,7 @@
 use tokio::time::{Duration, Instant, sleep};
 
 #[must_use = "Tasks are aborted when dropped. Call .detach() to run a task in the background."]
-pub struct Task<T> {
+pub struct Task<T = ()> {
     inner: Option<tokio::task::JoinHandle<T>>,
 }
 
