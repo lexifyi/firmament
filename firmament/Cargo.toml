@@ -20,4 +20,5 @@ firmament_proc_macros = { path = "../firmament-proc-macros" }
 log = "0.4.34"
 serde = { version = "1.0.229", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-postgres = "0.7.18"
 tower-http = { version = "0.7.1", features = ["fs"] }

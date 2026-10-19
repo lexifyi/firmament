@@ -5,6 +5,7 @@ pub mod base32;
 #[cfg(feature = "email")]
 pub mod email;
 mod env;
+pub mod postgres;
 mod task;
 #[cfg(feature = "web")]
 pub mod web;
