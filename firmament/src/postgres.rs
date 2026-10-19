@@ -1,4 +1,4 @@
-use std::{env, fmt};
+use std::env;
 
 use tokio::sync::OnceCell;
 pub use tokio_postgres::{Client, Error, Statement};
