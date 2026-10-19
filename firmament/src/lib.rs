@@ -5,6 +5,7 @@ pub mod base32;
 #[cfg(feature = "email")]
 pub mod email;
 mod env;
+#[cfg(feature = "postgres")]
 pub mod postgres;
 mod task;
 #[cfg(feature = "web")]
@@ -13,7 +14,7 @@ pub mod web;
 pub use self::app::main;
 #[cfg(feature = "email")]
 pub use self::email::Email;
-pub use self::env::DATA_DIR;
+pub use self::env::{DATA_DIR, PROJECT_DIR};
 pub use self::task::{Task, repeat_every};
 
 pub mod log {

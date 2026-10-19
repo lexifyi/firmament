@@ -1,17 +1,12 @@
-use std::net::Ipv4Addr;
-
-use firmament::web;
+use firmament::log;
 
 #[firmament::main]
 async fn main() -> firmament::app::Result {
-    let mut server = web::Server::new();
+    let project_dir = firmament::PROJECT_DIR.as_ref();
+    let data_dir = firmament::DATA_DIR.as_ref();
 
-    server.set_listen_ip(Ipv4Addr::LOCALHOST);
-    server.set_listen_port(12345);
-
-    let task = server.start().await?;
-
-    task.join().await;
+    log::info!("{project_dir:?}");
+    log::info!("{data_dir:?}");
 
     Ok(())
 }
