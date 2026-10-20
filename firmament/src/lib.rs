@@ -14,7 +14,7 @@ pub mod web;
 pub use self::app::main;
 #[cfg(feature = "email")]
 pub use self::email::Email;
-pub use self::env::{DATA_DIR, PROJECT_DIR};
+pub use self::env::{FIRMAMENT_HOME, PROJECT_DIR};
 pub use self::task::{Task, repeat_every};
 
 pub mod log {

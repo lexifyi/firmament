@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-firmament = { path = "../firmament", features = ["web"] }
+firmament = { path = "../firmament", features = ["postgres"] }
+serde_json = "1"
 rand = "0.10.3"
 tower-http = "0.7.1"
