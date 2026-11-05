@@ -1,3 +1,5 @@
+mod socket;
+
 use std::{
     fmt,
     net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4},
@@ -6,19 +8,12 @@ use std::{
 
 use axum::{
     Json, Router,
-    extract::{
-        Query, WebSocketUpgrade,
-        ws::{CloseFrame, Message, WebSocket},
-    },
+    extract::{Query, WebSocketUpgrade},
     routing::any,
 };
-use futures_util::{
-    SinkExt, StreamExt,
-    stream::{SplitSink, SplitStream},
-};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use tokio::sync::mpsc;
+use serde::{Serialize, de::DeserializeOwned};
 
+pub use self::socket::{WebSocket, WebSocketHandle};
 use crate::{Task, app};
 
 pub struct Server {
@@ -104,9 +99,14 @@ impl Api {
         self.router = Some(router.route(
             &path,
             any(async |ws: WebSocketUpgrade| {
-                ws.on_upgrade(async |ws| {
-                    let (tx, rx) = ws.split();
-                })
+                ws
+                    // shrink max sizes because incoming messages SHOULD be small
+                    .max_frame_size(2048)
+                    .max_message_size(2048)
+                    .read_buffer_size(2048)
+                    // disable write buffer because messages are always flushed
+                    .write_buffer_size(0)
+                    .on_upgrade(|ws| handler(WebSocket::new(ws)))
             }),
         ))
     }
@@ -162,69 +162,5 @@ impl Api {
 impl Default for Api {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-pub struct Sender<T> {
-    inner: SplitSink<WebSocket, Message>,
-}
-
-pub struct Receiver<T> {
-    inner: SplitStream<WebSocket>,
-}
-
-impl<T: Serialize> Sender<T> {
-    pub fn send(&mut self, message: &T) {
-        let message = serde_json::to_string(message);
-
-        self.inner.send()
-    }
-}
-
-async fn pump<S: Serialize, R: for<'a> Deserialize<'a>>(ws: WebSocket) {
-    let (mut sink, mut stream) = ws.split();
-    let (_, rx) = mpsc::channel::<S>(8);
-    let (tx, _) = mpsc::channel::<R>(8);
-
-    tokio::select! {
-        _ = send(&mut sink, rx) => {},
-        _ = receive(&mut stream, tx) => {}
-    };
-}
-
-async fn send<T: Serialize>(ws: &mut SplitSink<WebSocket, Message>, mut rx: mpsc::Receiver<T>) {
-    while let Some(value) = rx.recv().await {
-        let text = serde_json::to_string(&value).unwrap();
-
-        if let Err(err) = ws.send(Message::Text(text.into())).await {
-            log::debug!("{err}");
-            return;
-        }
-    }
-}
-
-async fn receive<T: for<'a> Deserialize<'a>>(ws: &mut SplitStream<WebSocket>, tx: mpsc::Sender<T>) {
-    while let Some(result) = ws.next().await {
-        let Ok(message) = result else { break };
-
-        let text = match &message {
-            Message::Text(utf8_bytes) => utf8_bytes.as_str(),
-            other => {
-                log::debug!("Unexpected message: {other:?}");
-                break;
-            }
-        };
-
-        let value = match serde_json::from_str(text) {
-            Ok(v) => v,
-            Err(err) => {
-                log::debug!("Failed to deserialize message. {err}");
-                return;
-            }
-        };
-
-        if let Err(_) = tx.send(value).await {
-            return;
-        }
     }
 }
