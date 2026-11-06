@@ -106,12 +106,6 @@ impl WebSocket {
 }
 
 impl WebSocketHandle {
-    /// Returns `false` if no further messages can be sent.
-    #[inline]
-    pub fn can_send(&self) -> bool {
-        !self.sender.is_closed()
-    }
-
     /// Sends a serialized JSON message on the socket.
     #[inline]
     pub fn send(&self, message: &impl Serialize) -> impl Future<Output = ()> {
@@ -131,13 +125,21 @@ impl WebSocketHandle {
     }
 }
 
+/// Sends and receives WebSocket messages using MPSC channels.
+///
+/// This allows the socket to run on its own abortable task so that it can be
+/// immediately disconnected on unexpected inputs, etc.
 async fn handle_socket(
     socket: AxumWebSocket,
     in_chan: mpsc::Sender<Utf8Bytes>,
     out_chan: mpsc::Receiver<Utf8Bytes>,
 ) {
     let (sink, stream) = socket.split();
-    let _ignore_error = tokio::try_join!(
+
+    // try_join allows both functions to run to completion unless one of them
+    // returns an Err, which indicates that the socket should be dropped
+    // immediately (because it e.g. sent an invalid message).
+    let _ = tokio::try_join!(
         handle_sends(sink, out_chan),
         handle_receives(stream, in_chan)
     );
@@ -167,14 +169,17 @@ async fn handle_receives(
         match item {
             Ok(message) => match message {
                 Message::Text(text) => {
-                    if chan.send(text).await.is_err() {
+                    if let Err(err) = chan.send(text).await {
+                        #[cfg(debug_assertions)]
+                        log::error!("Extra message: {:?}", err.0);
+
                         return Err(());
                     }
                 }
 
                 other => {
                     #[cfg(debug_assertions)]
-                    log::error!("Unexpected message: {other:?}");
+                    log::error!("Non-text message: {other:?}");
 
                     return Err(());
                 }
@@ -192,7 +197,7 @@ async fn handle_receives(
     Ok(())
 }
 
-#[inline(always)]
+#[inline]
 #[track_caller]
 fn send(sink: &mpsc::Sender<Utf8Bytes>, message: &impl Serialize) -> impl Future<Output = ()> {
     send_raw(
@@ -201,7 +206,7 @@ fn send(sink: &mpsc::Sender<Utf8Bytes>, message: &impl Serialize) -> impl Future
     )
 }
 
-#[inline(always)]
+#[inline]
 fn send_raw(
     sink: &mpsc::Sender<Utf8Bytes>,
     json: impl Into<Utf8Bytes>,

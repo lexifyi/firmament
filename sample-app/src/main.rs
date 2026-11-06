@@ -1,15 +1,30 @@
 use firmament::{log, web};
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize)]
+struct Request {
+    message: String,
+}
+
+#[derive(Serialize)]
+struct Response<'a> {
+    message: &'a str,
+}
 
 #[firmament::main]
 async fn main() -> firmament::app::Result {
     let mut server = web::Server::new();
 
-    server.listen_address.set_port(0);
+    server.listen_address.set_port(12834);
     server.api.add_socket("echo", async |mut socket| {
-        while let Some(text) = socket.recv_raw().await {
-            log::info!("{:?}", text.as_str());
+        while let Some(text) = socket.recv::<Request>().await {
+            log::info!("{:?}", text.message);
 
-            socket.send_raw(text).await;
+            socket
+                .send(&Response {
+                    message: &text.message,
+                })
+                .await;
         }
     });
 

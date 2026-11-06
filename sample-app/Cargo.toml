@@ -7,4 +7,5 @@ edition = "2024"
 firmament = { path = "../firmament", features = ["web"] }
 serde_json = "1"
 rand = "0.10.3"
+serde = { version = "1", features = ["derive"] }
 tower-http = "0.7.1"

@@ -2278,6 +2278,7 @@ version = "0.1.0"
 dependencies = [
  "firmament",
  "rand 0.10.3",
+ "serde",
  "serde_json",
  "tower-http",
 ]
