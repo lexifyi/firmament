@@ -101,11 +101,10 @@ impl Api {
             any(async |ws: WebSocketUpgrade| {
                 ws
                     // shrink max sizes because incoming messages SHOULD be small
-                    .max_frame_size(2048)
-                    .max_message_size(2048)
-                    .read_buffer_size(2048)
-                    // disable write buffer because messages are always flushed
-                    .write_buffer_size(0)
+                    .max_frame_size(4096)
+                    .max_message_size(4096)
+                    .read_buffer_size(4096)
+                    .write_buffer_size(4096)
                     .on_upgrade(async |ws| {
                         let ws = WebSocket::new(ws);
                         handler(ws).await;
