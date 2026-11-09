@@ -13,7 +13,7 @@ use axum::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 
-pub use self::socket::{WebSocket, WebSocketSender};
+pub use self::socket::{Sender, Socket};
 use crate::{Task, app};
 
 pub struct Server {
@@ -89,7 +89,7 @@ impl Api {
     pub fn add_socket<F>(
         &mut self,
         name: impl fmt::Display,
-        handler: impl FnOnce(WebSocket) -> F + Clone + Send + Sync + 'static,
+        handler: impl FnOnce(Socket) -> F + Clone + Send + Sync + 'static,
     ) where
         F: Future<Output = ()> + Send,
     {
@@ -106,7 +106,7 @@ impl Api {
                     .read_buffer_size(4096)
                     .write_buffer_size(4096)
                     .on_upgrade(async |ws| {
-                        let ws = WebSocket::new(ws);
+                        let ws = Socket::new(ws);
                         handler(ws).await;
                     })
             }),

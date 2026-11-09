@@ -8,9 +8,9 @@ async fn main() -> firmament::app::Result {
     server.api.add_socket("echo", async |mut socket| {
         log::info!("Connected.");
 
-        while let Some(text) = socket.recv_text().await {
+        while let Some(text) = socket.recv_raw().await {
             log::info!("{:?}", text);
-            socket.send_text(text).await;
+            socket.send_raw(text);
         }
 
         log::info!("Disconnected.");

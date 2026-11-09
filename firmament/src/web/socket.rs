@@ -1,84 +1,53 @@
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket as AxumWebSocket};
-use futures_util::{
-    SinkExt, StreamExt,
-    stream::{SplitSink, SplitStream},
-};
+use futures_util::{SinkExt, StreamExt, stream::SplitStream};
 use serde::{Serialize, de::DeserializeOwned};
+use tokio::sync::mpsc;
 
-/// A WebSocket endpoint.
-pub struct WebSocket {
-    receiver: WebSocketReceiver,
-    sender: WebSocketSender,
-}
-
-/// The receiver half of a WebSocket returned from [`WebSocket::split()`].
-pub struct WebSocketReceiver {
+/// A firament socket.
+pub struct Socket {
+    sender: Sender,
     stream: SplitStream<AxumWebSocket>,
 }
 
-/// The sender half of a WebSocket returned from [`WebSocket::split()`].
-pub struct WebSocketSender {
-    sink: SplitSink<AxumWebSocket, Message>,
+/// A cloneable handle to a [`Socket`] that can be used to send messages or
+/// close the connection.
+pub struct Sender {
+    sender: mpsc::UnboundedSender<Message>,
 }
 
-impl WebSocket {
+impl Socket {
     #[inline]
     pub fn new(socket: AxumWebSocket) -> Self {
-        let (sink, stream) = socket.split();
-        let receiver = WebSocketReceiver { stream };
-        let sender = WebSocketSender { sink };
+        let (mut sink, stream) = socket.split();
+        let (sender, mut receiver) = mpsc::unbounded_channel();
 
-        Self { receiver, sender }
+        tokio::spawn(async move {
+            while let Some(message) = receiver.recv().await {
+                if sink.send(message).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        Self {
+            sender: Sender { sender },
+            stream,
+        }
     }
 
     /// Closes the socket gracefully.
+    ///
+    /// This is called automatically when the socket is dropped.
     #[inline]
-    pub fn close(&mut self) -> impl Future<Output = ()> {
+    pub fn close(&mut self) {
         self.sender.close()
     }
 
     /// Receives a JSON message from the socket.
     ///
     /// Returns `None` when the socket has been closed.
-    #[inline]
-    pub fn recv_json<T: DeserializeOwned>(&mut self) -> impl Future<Output = Option<T>> {
-        self.receiver.recv_json()
-    }
-
-    /// Receives a text message from the socket.
-    ///
-    /// Returns `None` when the socket has been closed.
-    #[inline]
-    pub fn recv_text(&mut self) -> impl Future<Output = Option<Utf8Bytes>> {
-        self.receiver.recv_text()
-    }
-
-    /// Sends a JSON message on the socket.
-    #[inline]
-    pub fn send_json(&mut self, message: &impl Serialize) -> impl Future<Output = bool> {
-        self.sender.send_json(message)
-    }
-
-    /// Sends a text message on the socket.
-    #[inline]
-    pub fn send_text(&mut self, text: impl Into<Utf8Bytes>) -> impl Future<Output = bool> {
-        self.sender.send_text(text)
-    }
-
-    /// Splits this WebSocket into sender and receiver halves which can be used
-    /// concurrenctly.
-    #[inline]
-    pub fn split(self) -> (WebSocketSender, WebSocketReceiver) {
-        (self.sender, self.receiver)
-    }
-}
-
-impl WebSocketReceiver {
-    /// Receives a JSON message from the socket.
-    ///
-    /// Returns `None` when the socket has been closed.
-    pub async fn recv_json<T: DeserializeOwned>(&mut self) -> Option<T> {
-        while let Some(text) = self.recv_text().await {
+    pub async fn recv<T: DeserializeOwned>(&mut self) -> Option<T> {
+        while let Some(text) = self.recv_raw().await {
             match serde_json::from_str(text.as_str()) {
                 Ok(message) => {
                     return Some(message);
@@ -87,7 +56,6 @@ impl WebSocketReceiver {
                 Err(err) => {
                     #[cfg(debug_assertions)]
                     log::warn!("Failed to deserialize message: {err}");
-                    continue;
                 }
             }
         }
@@ -95,10 +63,10 @@ impl WebSocketReceiver {
         None
     }
 
-    /// Receives a text message from the socket.
+    /// Receives a raw text message from the socket.
     ///
     /// Returns `None` when the socket has been closed.
-    pub async fn recv_text(&mut self) -> Option<Utf8Bytes> {
+    pub async fn recv_raw(&mut self) -> Option<Utf8Bytes> {
         while let Some(result) = self.stream.next().await {
             match result {
                 Ok(message) => match message {
@@ -125,27 +93,53 @@ impl WebSocketReceiver {
 
         None
     }
+
+    /// Sends a JSON message on the socket.
+    ///
+    /// Returns `false` if the socket is closed.
+    #[inline]
+    pub fn send(&mut self, message: &impl Serialize) -> bool {
+        self.sender.send_json(message)
+    }
+
+    /// Sends a raw text message on the socket.
+    ///
+    /// Returns `false` if the socket is closed.
+    #[inline]
+    pub fn send_raw(&mut self, text: impl Into<Utf8Bytes>) -> bool {
+        self.sender.send_text(text)
+    }
 }
 
-impl WebSocketSender {
+impl Sender {
     /// Closes the socket gracefully.
+    ///
+    /// This is called automatically when the [`Socket`] is dropped.
     #[inline]
-    pub async fn close(&mut self) {
-        let _ = self.sink.send(Message::Close(None)).await;
+    pub fn close(&mut self) {
+        let _ = self.sender.send(Message::Close(None));
     }
 
     /// Sends a JSON message on the socket.
-    pub fn send_json(&mut self, message: &impl Serialize) -> impl Future<Output = bool> {
+    ///
+    /// Returns `false` if the socket is closed.
+    pub fn send_json(&mut self, message: &impl Serialize) -> bool {
         let json = serde_json::to_string(message).expect("failed to serialize message to JSON");
 
         self.send_text(json)
     }
 
     /// Sends a text message on the socket.
+    ///
+    /// Returns `false` if the socket is closed.
     #[inline]
-    pub fn send_text(&mut self, text: impl Into<Utf8Bytes>) -> impl Future<Output = bool> {
-        let text = text.into();
+    pub fn send_text(&mut self, text: impl Into<Utf8Bytes>) -> bool {
+        self.sender.send(Message::Text(text.into())).is_ok()
+    }
+}
 
-        async { self.sink.send(Message::Text(text)).await.is_ok() }
+impl Drop for Socket {
+    fn drop(&mut self) {
+        self.close();
     }
 }
