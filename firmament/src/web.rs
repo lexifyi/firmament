@@ -24,15 +24,14 @@ pub struct Server {
 
 impl Server {
     pub fn new() -> Self {
-        let mut server = Self {
+        Self {
             api: Api::new(),
+            #[cfg(debug_assertions)]
+            listen_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)),
+            #[cfg(not(debug_assertions))]
             listen_address: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 80)),
             public_dir: None,
-        };
-
-        server.api.add_query("firmament/isUp", async |_: ()| true);
-
-        server
+        }
     }
 
     pub fn set_listen_ip(&mut self, ip: impl Into<IpAddr>) {
