@@ -13,7 +13,7 @@ use axum::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 
-pub use self::socket::{WebSocket, WebSocketHandle};
+pub use self::socket::{WebSocket, WebSocketSender};
 use crate::{Task, app};
 
 pub struct Server {
@@ -91,7 +91,7 @@ impl Api {
         name: impl fmt::Display,
         handler: impl FnOnce(WebSocket) -> F + Clone + Send + Sync + 'static,
     ) where
-        F: Future<Output = ()> + Send + 'static,
+        F: Future<Output = ()> + Send,
     {
         let path = format!("/api/{}", name);
         let router = self.router.take().unwrap();
@@ -106,7 +106,10 @@ impl Api {
                     .read_buffer_size(2048)
                     // disable write buffer because messages are always flushed
                     .write_buffer_size(0)
-                    .on_upgrade(|ws| handler(WebSocket::new(ws)))
+                    .on_upgrade(async |ws| {
+                        let ws = WebSocket::new(ws);
+                        handler(ws).await;
+                    })
             }),
         ))
     }
