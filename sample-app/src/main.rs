@@ -10,6 +10,7 @@ async fn main() -> firmament::app::Result {
 
         while let Some(text) = socket.recv_text().await {
             log::info!("{:?}", text);
+            socket.send_text(text).await;
         }
 
         log::info!("Disconnected.");
